@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PoPo – Travis County Live CC</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 1rem;
+      background: #050816;
+      color: #e5e7eb;
+    }
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 0.25rem;
+    }
+    h2 {
+      font-size: 1.1rem;
+      margin-top: 1.25rem;
+      margin-bottom: 0.25rem;
+    }
+    .subtitle {
+      font-size: 0.9rem;
+      color: #9ca3af;
+      margin-bottom: 1rem;
+    }
+    .card {
+      background: rgba(17, 24, 39, 0.95);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+      border: 1px solid rgba(55, 65, 81, 0.8);
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    button {
+      flex: 1 1 auto;
+      min-width: 100px;
+      padding: 0.65rem 0.85rem;
+      border-radius: 999px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #1d4ed8;
+      color: #f9fafb;
+      outline: none;
+    }
+    button.secondary {
+      background: #374151;
+      color: #e5e7eb;
+    }
+    button.danger {
+      background: #b91c1c;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .status {
+      font-size: 0.85rem;
+      color: #9ca3af;
+      margin-bottom: 0.5rem;
+    }
+    .status span {
+      font-weight: 600;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 0.6rem;
+      height: 0.6rem;
+      border-radius: 999px;
+      margin-right: 0.35rem;
+      background: #6b7280;
+    }
+    .status-dot.live {
+      background: #22c55e;
+      box-shadow: 0 0 12px rgba(34,197,94,0.9);
+    }
+    .status-dot.off {
+      background: #6b7280;
+    }
+    .stream-note {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      margin-bottom: 0.75rem;
+    }
+    .stream-note code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: #111827;
+      padding: 0.1rem 0.3rem;
+      border-radius: 0.35rem;
+    }
+    .transcript-wrap {
+      margin-top: 0.75rem;
+    }
+    .transcript-label {
+      font-size: 0.85rem;
+      color: #9ca3af;
+      margin-bottom: 0.25rem;
+    }
+    .transcript {
+      max-height: 55vh;
+      overflow-y: auto;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      background: #020617;
+      border: 1px solid #111827;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .current-line {
+      margin-top: 0.35rem;
+      font-size: 0.9rem;
+      color: #fbbf24;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      color: #9ca3af;
+      margin-right: 0.5rem;
+    }
+    .badge span.dot {
+      width: 0.4rem;
+      height: 0.4rem;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+    .footer-note {
+      margin-top: 0.9rem;
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+    a {
+      color: #60a5fa;
+    }
+    audio {
+      width: 100%;
+      margin-top: 0.35rem;
+    }
+    .warning {
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      color: #f97316;
+    }
+  </style>
+</head>
+<body>
+  <h1>PoPo – Travis County Live CC</h1>
+  <div class="subtitle">
+    Session-only, real-time captions for police scanner audio.<br />
+    Keep this tab open; closing it clears the transcript.
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <button id="startBtn">▶ Start Listening</button>
+      <button id="stopBtn" class="secondary" disabled>⏹ Stop</button>
+      <button id="clearBtn" class="danger">🧹 Clear Session</button>
+    </div>
+
+    <div class="status">
+      <span id="statusDot" class="status-dot off"></span>
+      <span id="statusText">Idle</span>
+    </div>
+    <div id="supportWarning" class="warning" style="display:none;"></div>
+
+    <div class="stream-note">
+      <strong>Audio Source:</strong> Travis County / Austin, TX Law Enforcement stream<br />
+      URL: <code>http://audio1.radioreference.com/907330774</code><br /><br />
+      This page uses your device's <strong>microphone</strong> and the browser's built-in
+      Speech Recognition. Because browsers don't let us “pipe” this stream directly into
+      captions with no server, the simplest real-world setup is:
+      <ul>
+        <li>Play the stream (below or on another device),</li>
+        <li>Tap <strong>Start Listening</strong>, grant mic access,</li>
+        <li>Let PoPo listen and caption whatever it hears.</li>
+      </ul>
+      <strong>Important:</strong> Chrome only allows speech recognition on secure origins (HTTPS)
+      and some sandboxed views (like this preview) may block it completely. For best results,
+      host this file on HTTPS (e.g. GitHub Pages) and open it there in Chrome for Android.
+    </div>
+
+    <div>
+      <div class="badge">
+        <span class="dot"></span> Uses browser speech-to-text (en-US)
+      </div>
+      <div class="badge">
+        NATO / police codes → plain English
+      </div>
+    </div>
+
+    <h2>Scanner Audio (optional)</h2>
+    <p class="stream-note">
+      If your browser allows insecure (HTTP) audio here, this will play the Travis County stream.
+      Tap play if it doesn't auto-start after you hit <strong>Start Listening</strong>.
+    </p>
+    <audio id="scannerAudio" controls preload="none">
+      <source src="http://audio1.radioreference.com/907330774" type="audio/mpeg" />
+      Your browser does not support the audio element.
+    </audio>
+
+    <div class="transcript-wrap">
+      <div class="transcript-label">Session transcript (stored only in this tab):</div>
+      <div id="transcript" class="transcript"></div>
+      <div id="currentLine" class="current-line"></div>
+    </div>
+
+    <div class="footer-note">
+      Notes:
+      <ul>
+        <li>Captions reset when you close this browser tab.</li>
+        <li>Accuracy depends on audio quality &amp; radio traffic.</li>
+        <li>Phonetics (e.g. “Charlie”) and common 10-codes are normalized to clearer text.</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      const startBtn = document.getElementById("startBtn");
+      const stopBtn = document.getElementById("stopBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const statusDot = document.getElementById("statusDot");
+      const statusText = document.getElementById("statusText");
+      const transcriptEl = document.getElementById("transcript");
+      const currentLineEl = document.getElementById("currentLine");
+      const scannerAudio = document.getElementById("scannerAudio");
+      const supportWarning = document.getElementById("supportWarning");
+
+      let recognition = null;
+      let listening = false;
+      let fullTranscript = sessionStorage.getItem("popoTranscript") || "";
+
+      // Show any previous session content (sessionStorage will clear on tab close)
+      if (fullTranscript) {
+        transcriptEl.textContent = fullTranscript;
+      }
+
+      if (!SpeechRecognition) {
+        statusText.textContent =
+          "Browser doesn't expose Web Speech API (SpeechRecognition).";
+        supportWarning.style.display = "block";
+        supportWarning.textContent =
+          "Tip: Use Google Chrome on Android and host this file on HTTPS (e.g. GitHub Pages). " +
+          "Some in-app or sandboxed browsers disable speech recognition entirely.";
+        startBtn.disabled = true;
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onstart = function () {
+        listening = true;
+        updateStatus("Listening for scanner audio…", true);
+      };
+
+      recognition.onerror = function (event) {
+        console.error("Speech recognition error:", event);
+        updateStatus("Error: " + (event.error || "unknown"), false);
+        listening = false;
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      };
+
+      recognition.onend = function () {
+        listening = false;
+        updateStatus("Idle", false);
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      };
+
+      recognition.onresult = function (event) {
+        let interimTranscript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          const text = result[0].transcript;
+          if (result.isFinal) {
+            const processed = normalizeCodes(text);
+            fullTranscript += processed + "\n";
+            transcriptEl.textContent = fullTranscript;
+            sessionStorage.setItem("popoTranscript", fullTranscript);
+            currentLineEl.textContent = "";
+            scrollTranscriptToBottom();
+          } else {
+            interimTranscript += text;
+          }
+        }
+        if (interimTranscript) {
+          currentLineEl.textContent =
+            "… " + normalizeCodes(interimTranscript.trim());
+        }
+      };
+
+      function updateStatus(message, live) {
+        statusText.textContent = message;
+        statusDot.className = "status-dot " + (live ? "live" : "off");
+      }
+
+      function scrollTranscriptToBottom() {
+        transcriptEl.scrollTop = transcriptEl.scrollHeight;
+      }
+
+      function normalizeCodes(text) {
+        if (!text) return "";
+
+        let normalized = " " + text.trim() + " ";
+
+        const phoneticMap = {
+          adam: "A",
+          boy: "B",
+          charles: "C",
+          charlie: "C",
+          david: "D",
+          edward: "E",
+          frank: "F",
+          george: "G",
+          henry: "H",
+          ida: "I",
+          john: "J",
+          king: "K",
+          lincoln: "L",
+          mary: "M",
+          nora: "N",
+          ocean: "O",
+          paul: "P",
+          queen: "Q",
+          robert: "R",
+          sam: "S",
+          tom: "T",
+          union: "U",
+          victor: "V",
+          william: "W",
+          "x-ray": "X",
+          xray: "X",
+          young: "Y",
+          zebra: "Z"
+        };
+
+        const codeMap = {
+          "10-4": "OK / acknowledged",
+          "10 4": "OK / acknowledged",
+          "10-8": "in service",
+          "10 8": "in service",
+          "10-7": "out of service",
+          "10 7": "out of service",
+          "10-9": "repeat last transmission",
+          "10 9": "repeat last transmission",
+          "10-20": "location",
+          "10 20": "location",
+          "10-23": "on scene",
+          "10 23": "on scene",
+          "10-97": "arrived on scene",
+          "10 97": "arrived on scene"
+        };
+
+        // Normalize common phonetic alphabet words
+        Object.keys(phoneticMap).forEach(function (key) {
+          const re = new RegExp("\\b" + key + "\\b", "gi");
+          normalized = normalized.replace(re, " " + phoneticMap[key] + " ");
+        });
+
+        // Normalize common 10-codes
+        Object.keys(codeMap).forEach(function (key) {
+          const escapedKey = key.replace("-", "[- ]?");
+          const re = new RegExp("\\b" + escapedKey + "\\b", "gi");
+          normalized = normalized.replace(re, " " + codeMap[key] + " ");
+        });
+
+        // Clean spacing
+        normalized = normalized.replace(/\s+/g, " ").trim();
+
+        // Capitalize first letter for readability
+        if (normalized.length > 1) {
+          normalized = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+        }
+
+        return normalized;
+      }
+
+      async function requestMicAndStart() {
+        try {
+          // 1) Ask explicitly for microphone access first
+          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            updateStatus("Requesting microphone access…", false);
+            await navigator.mediaDevices.getUserMedia({ audio: true });
+          }
+
+          // 2) Try to kick the audio stream after a user gesture (may still be blocked in some setups)
+          if (scannerAudio && scannerAudio.paused) {
+            scannerAudio.play().catch((err) => {
+              console.warn("Audio autoplay blocked or failed:", err);
+            });
+          }
+
+          // 3) Start speech recognition
+          recognition.start();
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+          updateStatus("Starting… grant microphone access if prompted.", true);
+        } catch (e) {
+          console.error("Mic/recognition start error:", e);
+          updateStatus("Mic or recognition error: " + e.message, false);
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+        }
+      }
+
+      startBtn.addEventListener("click", function () {
+        if (!recognition) return;
+        requestMicAndStart();
+      });
+
+      stopBtn.addEventListener("click", function () {
+        if (!recognition || !listening) return;
+        recognition.stop();
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        updateStatus("Stopping…", false);
+      });
+
+      clearBtn.addEventListener("click", function () {
+        fullTranscript = "";
+        transcriptEl.textContent = "";
+        currentLineEl.textContent = "";
+        sessionStorage.removeItem("popoTranscript");
+      });
+    })();
+  </script>
+</body>
+</html>
